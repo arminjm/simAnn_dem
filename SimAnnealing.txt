@@ -1,0 +1,126 @@
+Attribute VB_Name = "Module1"
+Option Explicit
+Option Base 1
+
+Sub Main()
+Dim DGM() As Integer 'Array mit den DGM-Daten(x,y)
+Dim m As Integer
+Dim nrows As Long
+Dim ncols As Long
+Dim xlow As Long
+Dim xhigh As Long
+Dim ylow As Long
+Dim yhigh As Long
+Dim xres As Double
+Dim yres As Double
+Dim i As Long
+Dim j As Long
+Dim temp As Double
+Dim epsilon As Double
+Dim range As Double
+Dim OldValue As Integer
+Dim NewValue As Integer
+Dim MaxValue As Integer
+Dim DGMfile As String
+Dim buffer As String
+Dim xold As Integer
+Dim yold As Integer
+Dim xnew As Integer
+Dim ynew As Integer
+Dim xmax As Integer
+Dim ymax As Integer
+Dim prob As Double
+Dim z‰hler As Long
+Dim z‰hler2 As Long
+Dim z‰hlerx As Long
+Dim z‰hlery As Long
+Dim rangedecrease As Single
+Dim tempdecrease As Single
+
+Randomize                                  'Random number generator mit Uhrzeit-seed initilaisieren
+DGMfile = "d:\05_Progs\03_ich\00_VB\00_Toolbox\00_Mathematika\Sim_Annealing\dgm100m.grd"
+temp = 50                                  'Annealingtemperatur
+z‰hler = 0                                  'Z‰hler f¸r Schritte bis zum n‰chsten Temp- und Rangedecrease
+z‰hler2 = 50                                'Z‰hler f¸r Berechnung Temp- und Rangedecreaserate
+
+'DGM-daten einlesen
+Open DGMfile For Input As #1
+Line Input #1, buffer
+Input #1, ncols, nrows
+Input #1, xlow, xhigh
+Input #1, ylow, yhigh
+Line Input #1, buffer
+
+xres = (xhigh - xlow) / ncols       'Auflˆsung in x-Richtung
+yres = (yhigh - ylow) / nrows       'Auflˆsung in y-Richtung
+ReDim DGM(ncols, nrows)             'DGM-Array(x,y) mit DGM(1,1)= linke untere Ecke (SW-Ecke)
+
+For i = 1 To nrows                  'Schleife ¸ber alle Zeilen, beginned mit der unteren linken Ecke
+    For j = 1 To ncols              'Schleife ¸ber alle Spalten einer Zeile
+        Input #1, DGM(j, i)
+    Next j
+Next i
+
+'Annealing starten
+range = ((ncols ^ 2) + (nrows ^ 2)) ^ (0.5) 'Erlaubte Entfernung alter Punkt, neuer Punkt. Anfangs maximale Entfernung (Diagonalenl‰nge)
+tempdecrease = 0.999                        'Initiale Tempabnahmerate (je grˆﬂer umso langsamer die Abnahme)
+rangedecrease = 0.9999                       'Initiale Ranegabnahmerate(je grˆﬂer umso langsamer die Abnahme)
+xold = Int((ncols) * Rnd + 1)            'Zuf‰llige initiale x-Koordinate
+yold = Int((nrows) * Rnd + 1)            'Zuf‰llige initiale y-Koordinate
+
+'For m = 1 To 20                            'Diese Routine, um zu sehen, ab wievielen Schritten das Ergenbis stabil wird
+'For i = 1 To m * 1000                       'Anzahl Rechenschritte
+For i = 1 To 5000                           'Optimale Rechenschritte
+
+    OldValue = DGM(xold, yold)
+10:
+    If Rnd > 0.5 Then                     'Soll x- oder y-Koordinate ge‰andert werden?
+        xnew = Int((ncols) * Rnd + 1)     'Neue x-Koordinate
+        ynew = yold
+    Else
+        xnew = xold
+        ynew = Int((nrows) * Rnd + 1)    'Neue y-Koordinate
+    End If
+    
+    If (((xnew - xold) ^ 2) + ((ynew - yold) ^ 2)) ^ (0.5) > range Then
+        GoTo 10                                     'Wenn neuer Punkt zu weit weg, nochmal von vorne
+    End If
+    
+    NewValue = DGM(xnew, ynew)
+    
+    If NewValue > MaxValue Then     'Grˆﬂter insgesamt gemessenen Wert speichern
+        MaxValue = NewValue
+        xmax = xnew
+        ymax = ynew
+    End If
+    
+    If NewValue > OldValue Then     'Bei Verbesserung ƒnderung akzeptieren
+        xold = xnew
+        yold = ynew
+    Else                            'Verschlechterung des Ergebnisses
+        prob = Exp((NewValue - OldValue) / temp)    'Wahrscheinlichkeit des Tausches trotz Verschlechterung
+        If Rnd < prob Then                          'Zufallszahl [0,1] kleiner als Wahrscheinlichkeit -> Tausch akzeptieren
+            xold = xnew
+            yold = ynew
+        Else                                        'Zufallszahl [0,1] grˆﬂer als Wahrscheinlichkeit -> Tausch NICHT akzeptieren
+            xold = xold
+            yold = yold
+        End If
+    End If
+    
+    z‰hler = z‰hler + 1
+    If z‰hler = 50 Then                    'Nach 50 Schritten wird temp und range verkleinert
+        z‰hler2 = z‰hler2 + 1               'Je weiter man ist, umso grˆﬂer z‰hler2
+        rangedecrease = Exp(-1 / z‰hler2) 'Je weiter man ist, umso grˆﬂer der decreasewert -> langsamere Abnahme
+        tempdecrease = Exp(-1 / z‰hler2)
+        temp = temp * tempdecrease          'Verkleinerung der Annealingtemperatur
+        range = range * rangedecrease       'Verkleinerung der mˆglichen Entfernung alter/neuer Punkt
+        z‰hler = 0
+        'Debug.Print OldValue, xold, yold, temp, range, prob
+    End If
+    
+Next i
+Debug.Print MaxValue, xmax, ymax
+
+'Next m
+End Sub
